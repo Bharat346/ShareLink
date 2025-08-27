@@ -1,0 +1,246 @@
+/* SessionReceiver.css */
+.session-receiver-container-horizontal {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  width: 100%;
+  height: 100%;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+.status-card, .session-receiver-content {
+  background: #1f1f2e;
+  color: #fff;
+  border-radius: 12px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+
+.status-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 15px;
+}
+
+.status-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+.status-dot.connected { background: #4ade80; }
+.status-dot.disconnected { background: #f87171; }
+
+.status-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
+  flex-wrap: wrap;
+}
+
+.btn {
+  padding: 10px 16px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  transition: all 0.2s ease;
+}
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.connect-btn { background: #3b82f6; color: white; }
+.disconnect-btn { background: #ef4444; color: white; }
+.join-btn { 
+  background: #8b5cf6; 
+  color: white; 
+  margin-top: 10px;
+}
+.download-btn { 
+  background: #22c55e; 
+  color: white; 
+  margin-top: 15px;
+}
+
+.session-receiver-content h3 {
+  margin-top: 0;
+  margin-bottom: 20px;
+}
+
+.session-join {
+  margin-bottom: 20px;
+}
+
+.form-group {
+  margin-bottom: 15px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 500;
+}
+
+.form-group input[type="text"] {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid #444;
+  background: #2d2d3d;
+  color: white;
+  box-sizing: border-box;
+}
+
+.form-group input[type="text"]:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.session-status {
+  margin: 15px 0;
+  padding: 15px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  border-left: 4px solid #8b5cf6;
+}
+
+.session-info p {
+  margin: 5px 0;
+}
+
+.session-id {
+  font-family: monospace;
+  background: rgba(255, 255, 255, 0.1);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.session-help {
+  font-size: 0.9em;
+  color: #a0a0a0;
+  font-style: italic;
+}
+
+.progress-section {
+  margin-bottom: 20px;
+}
+
+.file-transfer-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.file-name {
+  font-weight: 500;
+}
+
+.file-size {
+  color: #a0a0a0;
+  font-size: 0.9em;
+}
+
+.transfer-stats {
+  text-align: center;
+  margin-top: 8px;
+  font-size: 0.9em;
+  color: #a0a0a0;
+}
+
+.received-file {
+  margin-top: 20px;
+}
+
+.received-file h4 {
+  margin-bottom: 10px;
+  color: #4ade80;
+}
+
+.file-details {
+  padding: 15px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  border-left: 4px solid #22c55e;
+}
+
+.file-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 15px;
+}
+
+.no-file {
+  text-align: center;
+  padding: 30px;
+  color: #a0a0a0;
+  font-style: italic;
+}
+
+.icon-inline {
+  margin-right: 5px;
+}
+
+/* Responsive styles */
+@media (min-width: 768px) {
+  .session-receiver-container-horizontal {
+    flex-direction: row;
+  }
+  
+  .status-card {
+    min-width: 280px;
+    max-width: 320px;
+  }
+  
+  .session-receiver-content {
+    flex: 1;
+  }
+}
+
+@media (max-width: 767px) {
+  .status-actions {
+    flex-direction: column;
+  }
+  
+  .btn {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .join-btn, .download-btn {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .file-transfer-info, .file-info {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 5px;
+  }
+}
+
+@media (max-width: 480px) {
+  .session-receiver-container-horizontal {
+    padding: 15px;
+  }
+  
+  .status-card, .session-receiver-content {
+    padding: 15px;
+  }
+  
+  .status-header h3 {
+    font-size: 16px;
+  }
+  
+  .session-receiver-content h3 {
+    font-size: 18px;
+  }
+}

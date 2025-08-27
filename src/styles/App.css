@@ -1,0 +1,340 @@
+/* App.css */
+body {
+  background: linear-gradient(135deg, #0a0e17 0%, #0f172a 100%);
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+}
+
+.app-container {
+  padding: 0;
+  min-height: 100vh;
+  color: #e1e7ff;
+  background: linear-gradient(135deg, #0a0e17 0%, #0f172a 100%);
+}
+
+.app-header {
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 41, 59, 0.95) 100%);
+  padding: 24px 32px;
+  margin-bottom: 24px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+}
+
+
+.header-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.header-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.app-header h1 {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 700;
+  background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.app-version {
+  background: rgba(59, 130, 246, 0.2);
+  color: #3b82f6;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.header-icon {
+  font-size: 32px;
+  color: #3b82f6;
+}
+
+.back-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-weight: 500;
+}
+
+.back-btn:hover {
+  background: rgba(239, 68, 68, 0.25);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);
+}
+
+.mode-selector {
+  margin-bottom: 20px;
+}
+
+.mode-selector-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  color: #94a3b8;
+  font-weight: 500;
+}
+
+.mode-header-icon {
+  font-size: 18px;
+}
+
+.mode-buttons {
+  display: flex;
+  gap: 16px;
+}
+
+.mode-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 16px 20px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(30, 41, 59, 0.6);
+  color: #cbd5e1;
+  cursor: pointer;
+  border-radius: 12px;
+  transition: all 0.3s ease;
+  font-weight: 500;
+  text-align: left;
+  flex: 1;
+  min-width: 160px;
+}
+
+.mode-btn:hover {
+  background: rgba(30, 41, 59, 0.8);
+  border-color: rgba(59, 130, 246, 0.5);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+}
+
+.mode-btn.active {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.2) 0%, rgba(139, 92, 246, 0.2) 100%);
+  border-color: rgba(59, 130, 246, 0.5);
+  color: #e1e7ff;
+  box-shadow: 0 8px 24px rgba(59, 130, 246, 0.2);
+}
+
+.mode-description {
+  font-size: 12px;
+  color: #94a3b8;
+  font-weight: 400;
+}
+
+.role-indicator {
+  display: flex;
+  justify-content: center;
+}
+
+.sender-indicator, .receiver-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 24px;
+  border-radius: 24px;
+  font-weight: 500;
+  background: rgba(30, 41, 59, 0.8);
+  border: 1px solid rgba(100, 116, 139, 0.3);
+  backdrop-filter: blur(10px);
+}
+
+.sender-indicator {
+  color: #22c55e;
+  border-color: rgba(34, 197, 94, 0.3);
+  background: rgba(34, 197, 94, 0.1);
+}
+
+.receiver-indicator {
+  color: #8b5cf6;
+  border-color: rgba(139, 92, 246, 0.3);
+  background: rgba(139, 92, 246, 0.1);
+}
+
+.indicator-icon {
+  font-size: 20px;
+}
+
+.indicator-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.indicator-label {
+  font-size: 12px;
+  opacity: 0.8;
+  font-weight: 400;
+}
+
+.indicator-role {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.app-main {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 0 24px 40px;
+}
+
+.app-content {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  padding: 32px;
+  background: rgba(15, 23, 42, 0.8);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+}
+
+.content-header {
+  margin-bottom: 28px;
+  text-align: center;
+}
+
+.content-title {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.content-title h2 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 600;
+  color: #e1e7ff;
+}
+
+.content-icon {
+  font-size: 28px;
+  color: #3b82f6;
+}
+
+.content-description {
+  color: #94a3b8;
+  font-size: 16px;
+  max-width: 500px;
+  margin: 0 auto;
+  line-height: 1.5;
+}
+
+.component-wrapper {
+  position: relative;
+}
+
+.logs-section {
+  margin-top: 8px;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .app-header {
+    padding: 20px;
+  }
+
+  .header-top {
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .header-brand {
+    justify-content: center;
+  }
+
+  .back-btn {
+    justify-content: center;
+  }
+
+  .mode-buttons {
+    flex-direction: column;
+  }
+
+  .mode-btn {
+    min-width: auto;
+  }
+
+  .app-content {
+    padding: 24px 20px;
+  }
+
+  .content-title {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .content-title h2 {
+    font-size: 20px;
+  }
+}
+
+@media (max-width: 480px) {
+  .app-main {
+    padding: 0 16px 32px;
+  }
+
+  .app-header {
+    padding: 16px;
+  }
+
+  .app-header h1 {
+    font-size: 24px;
+  }
+
+  .sender-indicator,
+  .receiver-indicator {
+    padding: 10px 20px;
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .app-content {
+    padding: 20px 16px;
+  }
+}
+
+/* Animation */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.app-content {
+  animation: fadeIn 0.5s ease-out;
+}
+
+.mode-btn {
+  animation: fadeIn 0.6s ease-out;
+}
+
+.mode-btn:nth-child(2) {
+  animation-delay: 0.1s;
+}

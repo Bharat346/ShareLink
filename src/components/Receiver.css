@@ -1,0 +1,208 @@
+/* Receiver.css */
+.receiver-container-horizontal {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  width: 100%;
+  height: 100%;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+.status-card, .receiver-content {
+  background: #1f1f2e;
+  color: #fff;
+  border-radius: 12px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+
+.status-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 15px;
+}
+
+.status-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+.status-dot.connected { background: #4ade80; }
+.status-dot.disconnected { background: #f87171; }
+
+.status-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 10px 0;
+}
+
+.status-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
+  flex-wrap: wrap;
+}
+
+.btn {
+  padding: 10px 16px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  transition: all 0.2s ease;
+}
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.connect-btn { background: #3b82f6; color: white; }
+.disconnect-btn { background: #ef4444; color: white; }
+.download-btn { 
+  background: #22c55e; 
+  color: white; 
+  margin-top: 15px;
+}
+
+.receiver-content h3 {
+  margin-top: 0;
+  margin-bottom: 20px;
+}
+
+.transfer-info {
+  margin-bottom: 15px;
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+}
+
+.progress-section {
+  margin-bottom: 20px;
+}
+
+.file-transfer-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.file-name {
+  font-weight: 500;
+}
+
+.file-size {
+  color: #a0a0a0;
+  font-size: 0.9em;
+}
+
+.transfer-stats {
+  text-align: center;
+  margin-top: 8px;
+  font-size: 0.9em;
+  color: #a0a0a0;
+}
+
+.received-file {
+  margin-top: 20px;
+}
+
+.received-file h4 {
+  margin-bottom: 10px;
+  color: #4ade80;
+}
+
+.file-details {
+  padding: 15px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  border-left: 4px solid #22c55e;
+}
+
+.file-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 15px;
+}
+
+.no-file {
+  text-align: center;
+  padding: 30px;
+  color: #a0a0a0;
+  font-style: italic;
+}
+
+.ip-address {
+  font-family: monospace;
+  background: rgba(255, 255, 255, 0.1);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.icon-inline {
+  margin-right: 5px;
+}
+
+/* Responsive styles */
+@media (min-width: 768px) {
+  .receiver-container-horizontal {
+    flex-direction: row;
+  }
+  
+  .status-card {
+    min-width: 280px;
+    max-width: 320px;
+  }
+  
+  .receiver-content {
+    flex: 1;
+  }
+}
+
+@media (max-width: 767px) {
+  .status-actions {
+    flex-direction: column;
+  }
+  
+  .btn {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .download-btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .receiver-container-horizontal {
+    padding: 15px;
+  }
+  
+  .status-card, .receiver-content {
+    padding: 15px;
+  }
+  
+  .status-header h3 {
+    font-size: 16px;
+  }
+  
+  .receiver-content h3 {
+    font-size: 18px;
+  }
+  
+  .file-transfer-info, .file-info {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 5px;
+  }
+}
