@@ -15,7 +15,7 @@ export const WSProvider = ({ children }) => {
 
   const connect = () => {
     try {
-      const socket = new WebSocket("ws://localhost:8080");
+      const socket = new WebSocket("ws://192.168.0.101:8080");
       setWs(socket);
 
       socket.onopen = () => {
