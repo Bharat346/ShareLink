@@ -1,0 +1,30 @@
+{
+  "name": "sharelink",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "server": "node server.mjs",
+    "lint": "eslint"
+  },
+  "dependencies": {
+    "@upstash/redis": "^1.37.0",
+    "dotenv": "^17.3.1",
+    "emoji-picker-react": "^4.18.0",
+    "lucide-react": "^1.6.0",
+    "next": "16.2.1",
+    "react": "19.2.4",
+    "react-dom": "^19.2.4",
+    "uuid": "^13.0.0",
+    "ws": "^8.20.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "babel-plugin-react-compiler": "1.0.0",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.1",
+    "tailwindcss": "^4"
+  }
+}
