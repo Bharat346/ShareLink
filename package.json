@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "server": "node server.mjs",
+    "server": "node index.mjs",
     "lint": "eslint"
   },
   "dependencies": {
