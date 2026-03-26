@@ -1,45 +1,26 @@
----
-title: "ShareLink – Secure P2P File Sharing"
-description: "Real-time peer-to-peer file sharing using WebRTC, WebSocket signaling, and the File System Access API."
-author: "Bharat"
-github: "https://github.com/Bharat346/ShareLink"
----
 
-import { Callout } from '@/components/ui/callout'
-import { Steps } from '@/components/ui/steps'
-import { Tabs, Tab } from '@/components/ui/tabs'
-import { Badge } from '@/components/ui/badge'
-
-# 📦 ShareLink – Secure P2P File Sharing
-
-<div className="flex flex-wrap gap-2 my-4">
-  <Badge variant="blue">WebRTC</Badge>
-  <Badge variant="green">Next.js</Badge>
-  <Badge variant="purple">WebSocket</Badge>
-  <Badge variant="orange">Node.js</Badge>
-  <Badge variant="gray">MIT License</Badge>
-</div>
+# ShareLink – Secure P2P File Sharing
 
 ShareLink is a **real-time, peer-to-peer file sharing web app** built with **WebRTC**, enabling direct device-to-device file transfer — no server storage, no upload wait times.
 
 ---
 
-## ✨ Features
+## Features
 
 | Feature | Description |
 |---|---|
-| 🔗 P2P Transfer | Direct WebRTC DataChannel streaming |
-| ⚡ No Server Storage | Files never touch the signaling server |
-| 🔐 E2E Encrypted | DTLS encryption built into WebRTC |
-| 🌐 Cross-Network | TURN relay support for NAT traversal |
-| 📁 Large File Support | GB-level streaming with smart buffering |
-| 🔄 Auto Reconnect | Session persistence via localStorage |
-| 💬 Real-time Chat | In-session messaging over DataChannel |
-| 📞 Audio Calls | Optional voice call between peers |
+| P2P Transfer | Direct WebRTC DataChannel streaming |
+| No Server Storage | Files never touch the signaling server |
+| E2E Encrypted | DTLS encryption built into WebRTC |
+| Cross-Network | TURN relay support for NAT traversal |
+| Large File Support | GB-level streaming with smart buffering |
+| Auto Reconnect | Session persistence via localStorage |
+| Real-time Chat | In-session messaging over DataChannel |
+| Audio Calls | Optional voice call between peers |
 
 ---
 
-## 🏗️ Architecture Overview
+## Architecture Overview
 
 ```text
 ┌─────────────────────────────────────────────────────────────────┐
@@ -70,7 +51,7 @@ ShareLink is a **real-time, peer-to-peer file sharing web app** built with **Web
 
 ---
 
-## 🔄 Connection Workflow
+## Connection Workflow
 
 The full lifecycle from page load to completed file transfer:
 
@@ -123,7 +104,7 @@ sequenceDiagram
         S-->>A: SIGNAL { candidate }
     end
 
-    A-->>B: DataChannel OPEN ✅
+    A-->>B: DataChannel OPEN
 ```
 
 ### Phase 3 — File Transfer Protocol
@@ -148,12 +129,12 @@ sequenceDiagram
     end
 
     A->>DC: END_TRANSFER
-    DC-->>B: finishDownload() → close file stream ✅
+    DC-->>B: finishDownload() → close file stream
 ```
 
 ---
 
-## 📂 Project Structure
+## Project Structure
 
 ```
 ShareLink/
@@ -175,7 +156,7 @@ ShareLink/
 
 ---
 
-## ⚙️ Setup & Installation
+## Setup & Installation
 
 <Steps>
 
@@ -227,7 +208,7 @@ npm run dev
 
 ---
 
-## 🔑 Core Modules
+## Core Modules
 
 ### `FileTransferManager` (`lib/webrtc.js`)
 
@@ -282,7 +263,7 @@ const {
 
 ---
 
-## 🔐 Security Model
+## Security Model
 
 ```
 ┌──────────────────────────────────────────┐
@@ -337,47 +318,7 @@ const {
 
 ---
 
-## 🚀 Deployment
-
-### Frontend — Vercel
-
-```bash
-vercel deploy
-# Set NEXT_PUBLIC_WS_URL in Vercel environment variables
-```
-
-### Backend — Railway / Render / Fly.io
-
-<Tabs>
-  <Tab label="Railway">
-    ```bash
-    railway init
-    railway up
-    # Set PORT environment variable
-    ```
-  </Tab>
-  <Tab label="Render">
-    ```yaml
-    # render.yaml
-    services:
-      - type: web
-        name: sharelink-server
-        env: node
-        buildCommand: npm install
-        startCommand: node server.js
-    ```
-  </Tab>
-  <Tab label="Fly.io">
-    ```bash
-    fly launch
-    fly deploy
-    ```
-  </Tab>
-</Tabs>
-
----
-
-## ⚠️ Known Limitations
+## Known Limitations
 
 | Limitation | Details |
 |---|---|
@@ -389,18 +330,18 @@ vercel deploy
 
 ---
 
-## 🗺️ Roadmap
+## Roadmap
 
-- [ ] 🔁 **Resume interrupted transfers** — checkpoint-based chunking
-- [ ] 📁 **Folder transfer** — zip on-the-fly or recursive directory support
-- [ ] 🔐 **AES encryption layer** — additional client-side encryption
-- [ ] 🧑‍🤝‍🧑 **Multi-peer sharing** — mesh or star topology
-- [ ] 🔒 **Privacy mode toggle** — force TURN-only in UI
-- [ ] 📊 **Transfer analytics** — speed graph, ETA, per-chunk stats
+- [ ] **Resume interrupted transfers** — checkpoint-based chunking
+- [ ] **Folder transfer** — zip on-the-fly or recursive directory support
+- [ ] **AES encryption layer** — additional client-side encryption
+- [ ] **Multi-peer sharing** — mesh or star topology
+- [ ] **Privacy mode toggle** — force TURN-only in UI
+- [ ] **Transfer analytics** — speed graph, ETA, per-chunk stats
 
 ---
 
-## 🤝 Contributing
+## Contributing
 
 Pull requests are welcome! Please open an issue first for major changes.
 
@@ -413,7 +354,7 @@ git push origin feature/your-feature
 
 ---
 
-## 📄 License
+## License
 
 MIT License © [Bharat](https://github.com/Bharat346)
 
