@@ -368,5 +368,6 @@ export default function useVaultHook() {
       setIsCallActive(nextState);
     },
     remoteAudioRef,
+    connectToSignalling,
   };
 }
