@@ -65,8 +65,8 @@ export default function TransmissionCell({
 
         <div className="pt-6 border-t border-accent-primary/10 flex items-center gap-4 justify-center">
             <div className={`w-2.5 h-2.5 rounded-full ${status === 'connected' ? 'bg-accent-primary shadow-[0_0_12px_var(--accent-primary)]' : 'bg-red-500 animate-pulse shadow-[0_0_10px_red]'}`}></div>
-            <span className={`text-[11px] font-bold uppercase tracking-[0.2em] leading-none ${status === 'connected' ? 'text-accent-primary' : 'text-red-500'}`}>
-               SYS_STATUS::{status.toUpperCase()}
+            <span className={`text-[12px] font-bold uppercase tracking-[0.2em] leading-none ${status === 'connected' ? 'text-accent-primary' : 'text-red-500'}`}>
+               {status === 'connected' ? 'ONLINE' : status === 'connecting' ? 'SYNCING' : 'OFFLINE'}
             </span>
         </div>
       </div>

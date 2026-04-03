@@ -44,7 +44,6 @@ export default function FileTransfer() {
     progress,
     logs,
     logContainerRef,
-    vpnIp,
     syncing,
     syncConnection,
     messages,
@@ -161,7 +160,7 @@ export default function FileTransfer() {
                   joinSession={joinSession}
                 />
 
-                <PathStats vpnIp={vpnIp} status={status} />
+                <PathStats status={status} />
               </div>
 
               <div className="lg:col-span-7 xl:col-span-8 flex flex-col gap-10 md:gap-12">
@@ -224,7 +223,7 @@ export default function FileTransfer() {
       <button
         suppressHydrationWarning
         onClick={() => setShowLogs(true)}
-        className="fixed bottom-10 right-10 w-16 h-16 bg-bg-surface/80 backdrop-blur-xl hover:bg-accent-primary text-text-secondary hover:text-white border border-border-default hover:border-accent-primary rounded-[22px] flex items-center justify-center transition-all duration-500 shadow-2xl group active:scale-90 z-[200]"
+        className="fixed bottom-40 right-5 w-16 h-16 bg-bg-surface/80 backdrop-blur-xl hover:bg-accent-primary text-text-secondary hover:text-white border border-border-default hover:border-accent-primary rounded-[22px] flex items-center justify-center transition-all duration-500 shadow-2xl group active:scale-90 z-[200]"
       >
         <TerminalIcon className="w-7 h-7 transition-all group-hover:scale-110" />
       </button>

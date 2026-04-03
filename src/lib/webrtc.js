@@ -270,33 +270,57 @@ export class FileTransferManager {
 
   async prepareForDownload(metadata) {
     if (!metadata) return;
-    this.fileName = metadata.fileName;
     this.totalBytes = metadata.fileSize;
     this.receivedBytes = 0;
     this.isReceiving = true;
-    this.onLog(`Provisioning storage for: ${this.fileName}`, "info");
+    this.currentFileStream = null;
+    this.receivedChunks = null;
+    this.fileName = metadata.fileName;
 
-    try {
-      const handle = await window.showSaveFilePicker({
-        suggestedName: this.fileName,
-      });
-      this.currentFileStream = await handle.createWritable();
-      this.onLog("Stream open. Receiving binary...", "success");
-      this.onStatus("downloading");
-      this.dataChannel.send(JSON.stringify({ type: "ACCEPT_TRANSFER" }));
-      // Resolve sender's promise
-      if (this.acceptanceResolve) {
-        this.acceptanceResolve(true);
-        this.acceptanceResolve = null;
+    const hasFilePicker = typeof window.showSaveFilePicker === "function" && window.isSecureContext;
+    let pickerSuccess = false;
+
+    // 1. Try Native Picker FIRST (Preserves User Activation in Chrome)
+    if (hasFilePicker) {
+      try {
+        const handle = await window.showSaveFilePicker({
+          suggestedName: this.fileName,
+        });
+        this.currentFileStream = await handle.createWritable();
+        this.fileName = handle.name; // Use the name from the picker
+        this.onLog(`Direct link established: ${this.fileName}`, "success");
+        pickerSuccess = true;
+      } catch (err) {
+        if (err.name === "AbortError") {
+          this.onLog("Save cancelled by node", "warning");
+          this.rejectTransfer();
+          this.isReceiving = false;
+          return;
+        }
+        this.onLog(`Native Picker bypassed: ${err.name}`, "info");
       }
+    }
 
-      this.onLog("Stream open. Receiving binary...", "success");
-      this.onStatus("downloading");
-    } catch (err) {
-      this.onLog("Download Aborted", "error");
-      this.rejectTransfer();
-      this.isReceiving = false;
-      this.onStatus("connected");
+    // 2. Fallback for Firefox/Mobile/Safari
+    if (!pickerSuccess) {
+      const customName = prompt("Save file as:", this.fileName);
+      if (customName === null) {
+        this.onLog("Download rejected by user", "warning");
+        this.rejectTransfer();
+        this.isReceiving = false;
+        return;
+      }
+      this.fileName = customName || this.fileName;
+      this.onLog("Using Browser Memory Relay", "info");
+      this.receivedChunks = [];
+    }
+
+    this.onStatus("downloading");
+    this.dataChannel.send(JSON.stringify({ type: "ACCEPT_TRANSFER" }));
+    
+    if (this.acceptanceResolve) {
+      this.acceptanceResolve(true);
+      this.acceptanceResolve = null;
     }
   }
 
@@ -318,6 +342,8 @@ export class FileTransferManager {
       await this.currentFileStream.write(data);
     } else if (this.audioChunks) {
       this.audioChunks.push(new Uint8Array(data));
+    } else if (this.receivedChunks) {
+      this.receivedChunks.push(new Uint8Array(data));
     }
     this.receivedBytes += data.byteLength;
     this.onProgress((this.receivedBytes / this.totalBytes) * 100);
@@ -327,11 +353,24 @@ export class FileTransferManager {
     if (this.currentFileStream) {
       await this.currentFileStream.close();
       this.currentFileStream = null;
+      this.onLog("File saved via stream", "success");
     } else if (this.audioChunks) {
       const audioBlob = new Blob(this.audioChunks, { type: 'audio/webm' });
       const url = URL.createObjectURL(audioBlob);
       this.onStatus("audio-received", { url, fileName: this.fileName });
       this.audioChunks = null;
+    } else if (this.receivedChunks) {
+      const blob = new Blob(this.receivedChunks);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = this.fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      this.receivedChunks = null;
+      this.onLog("File downloaded via memory buffer", "success");
     }
     this.onLog("Binary payload reconstructed successfully", "success");
     this.isReceiving = false;

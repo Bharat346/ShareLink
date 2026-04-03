@@ -6,7 +6,6 @@ import { FileTransferManager } from "../lib/webrtc";
 export default function useVaultHook() {
   const [vpnEnabled, setVpnEnabled] = useState(false);
   const [sessionId, setSessionId] = useState("");
-  const [vpnIp, setVpnIp] = useState("0.0.0.0");
   const [clientId, setClientId] = useState("");
   const [alias, setAlias] = useState("");
   const [status, setStatus] = useState("disconnected");
@@ -70,15 +69,13 @@ export default function useVaultHook() {
       localStorage.setItem(
         "vault_session",
         JSON.stringify({
-          clientId,
           sessionId,
           messages,
-          vpnIp,
           alias,
         }),
       );
     }
-  }, [clientId, sessionId, messages, vpnIp, alias]);
+  }, [clientId, sessionId, messages, alias]);
 
   const connectToSignalling = () => {
     if (wsRef.current) return;
@@ -90,13 +87,13 @@ export default function useVaultHook() {
     socket.onopen = () => {
       addLog("L4 Control Plane Synced", "success");
       setIsServerConnected(true);
+      setStatus("connected");
       const saved = JSON.parse(localStorage.getItem("vault_session") || "{}");
       if (saved.clientId) {
+        addLog("Attempting Identity Re-sync...", "info");
         socket.send(
           JSON.stringify({ type: "RECONNECT", oldClientId: saved.clientId }),
         );
-      } else {
-        setStatus("connected");
       }
     };
 
@@ -116,13 +113,12 @@ export default function useVaultHook() {
   const handleSignallingMessage = async (data) => {
     switch (data.type) {
       case "ASSIGNED_IP":
-        setVpnIp(data.vpnIp);
         setClientId(data.clientId);
         setAlias(data.alias);
+        setStatus("connected");
         break;
 
       case "RECONNECTED":
-        setVpnIp(data.vpnIp);
         setClientId(data.clientId);
         setAlias(data.alias);
         if (data.sessionId) {

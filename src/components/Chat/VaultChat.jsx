@@ -128,9 +128,9 @@ export default function VaultChat({
 
       <div 
         ref={scrollRef}
-        className="flex-grow overflow-y-auto custom-scrollbar relative bg-[#020617] scroll-smooth cyber-grid"
+        className="flex-1 min-h-0 overflow-y-auto custom-scrollbar relative bg-[#020617] scroll-smooth cyber-grid"
       >
-        <div className="max-w-5xl mx-auto p-4 md:p-8 flex flex-col gap-6 md:gap-8 min-h-full relative">
+        <div className="max-w-5xl mx-auto px-3 py-3 md:p-8 flex flex-col gap-3 md:gap-6 min-h-full relative">
           {/* AMBIENT LOGS (FLOATING) */}
           <div className="absolute top-4 left-4 opacity-10 pointer-events-none hidden lg:block font-mono text-[10px] space-y-1">
              <p className="animate-pulse">_INIT_VAULT_PROTOCOL...</p>
@@ -139,10 +139,11 @@ export default function VaultChat({
           </div>
 
           {messages.length === 0 && (
-             <div className="flex flex-grow flex-col items-center justify-center gap-5 opacity-40 select-none scale-75 md:scale-100 animate-pulse-slow">
-                <div className="w-24 h-24 rounded-3xl bg-accent-primary/5 flex items-center justify-center border border-accent-primary/20 shadow-[0_0_30px_var(--accent-primary-glow)] crt-flicker">
-                  <MessageSquare className="w-12 h-12 text-accent-primary" />
+             <div className="flex flex-1 flex-col items-center justify-center gap-4 opacity-40 select-none animate-pulse-slow py-10">
+                <div className="w-16 h-16 md:w-24 md:h-24 rounded-2xl md:rounded-3xl bg-accent-primary/5 flex items-center justify-center border border-accent-primary/20 shadow-[0_0_30px_var(--accent-primary-glow)]">
+                  <MessageSquare className="w-8 h-8 md:w-12 md:h-12 text-accent-primary" />
                 </div>
+                <p className="text-[10px] md:text-xs font-mono uppercase tracking-widest text-accent-primary/50">Awaiting Signal...</p>
              </div>
           )}
 

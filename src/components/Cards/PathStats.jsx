@@ -1,6 +1,6 @@
 import { Activity, Globe, Zap, BarChart3 } from "lucide-react";
 
-export default function PathStats({ vpnIp, status }) {
+export default function PathStats({ status }) {
   const isConnected = status === 'connected';
 
   return (
