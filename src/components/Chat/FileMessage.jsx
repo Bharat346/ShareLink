@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from "react";
 export default function FileMessage({ msg, isActiveTransfer, status, progress, acceptFile, rejectFile }) {
   const isLocal = msg.side === 'local';
   const isCurrentlyTransferring = isActiveTransfer && (status === 'transferring' || status === 'downloading');
-  const isPending = isActiveTransfer && (status === 'waiting-for-peer' || status === 'awaiting-acceptance'); 
+  const isPending = isActiveTransfer && (status === 'waiting-for-peer' || status === 'awaiting-acceptance' || status === 'file-request-received'); 
   
   const [speed, setSpeed] = useState("0");
   const [timeRemaining, setTimeRemaining] = useState("calculating...");
@@ -104,13 +104,13 @@ export default function FileMessage({ msg, isActiveTransfer, status, progress, a
           ) : (
              <div className="flex gap-2.5">
                 <button 
-                  onClick={acceptFile} 
+                  onClick={() => acceptFile(msg.fileName)} 
                   className="grow py-3 bg-accent-primary hover:brightness-110 text-white rounded-xl font-bold uppercase text-[10px] tracking-widest flex items-center justify-center gap-2.5 transition-all active:scale-95 shadow-lg shadow-accent-primary/20"
                 >
                    Accept <Download className="w-3.5 h-3.5" />
                 </button>
                 <button 
-                  onClick={rejectFile} 
+                  onClick={() => rejectFile(msg.fileName)} 
                   className="w-11 h-11 bg-bg-base/40 hover:bg-accent-red rounded-xl flex items-center justify-center border border-border-default text-text-muted hover:text-white transition-all active:scale-95 shrink-0"
                 >
                    <Trash2 className="w-4.5 h-4.5" />

@@ -1,12 +1,12 @@
-import { Send, Paperclip, Mic, Square, Smile, Activity, ChevronRight } from "lucide-react";
+import { Send, Paperclip, Mic, Square, Smile } from "lucide-react";
 import EmojiPicker from "emoji-picker-react";
+import { useEffect, useRef, useState } from "react";
 
 export default function ChatInput({
   input,
   setInput,
   handleSend,
   handleFileSelect,
-  isRecording,
   startRecording,
   stopRecording,
   showEmoji,
@@ -14,85 +14,112 @@ export default function ChatInput({
   status
 }) {
   const isConnected = status === "connected";
+  const containerRef = useRef(null);
+  const [isRecording, setIsRecording] = useState(false);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (containerRef.current && !containerRef.current.contains(event.target)) {
+        setShowEmoji(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [setShowEmoji]);
+
+  const onSendWrapper = () => {
+    if (input.trim()) {
+      handleSend();
+      setShowEmoji(false);
+    }
+  };
+
+  const handleMicToggle = () => {
+    if (isRecording) {
+      stopRecording();
+      setIsRecording(false);
+    } else {
+      startRecording();
+      setIsRecording(true);
+    }
+  };
 
   return (
-    <div className="p-2 sm:p-4 md:p-6 border-t border-accent-primary/10 bg-bg-base/90 backdrop-blur-3xl shrink-0 z-50">
+    <div ref={containerRef} className="p-3 sm:p-5 mb-safe bg-bg-base/98 backdrop-blur-3xl shrink-0 z-50 border-t border-accent-primary/10 font-mono relative overflow-visible">
       
-      <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-stretch sm:items-end gap-2 sm:gap-3 md:gap-4 relative">
-
-        {/* ACTION BUTTONS */}
-        <div className="flex gap-2 justify-between sm:justify-start">
-          
-          <label className="flex-1 sm:flex-none h-11 sm:w-11 bg-accent-primary/5 hover:bg-accent-primary border border-accent-primary/20 rounded-xl flex items-center justify-center transition-all cursor-pointer active:scale-95">
-            <Paperclip className="w-5 h-5 text-accent-primary" />
-            <input type="file" className="hidden" onChange={handleFileSelect} />
-          </label>
-
-          <button
-            onClick={isRecording ? stopRecording : startRecording}
-            className={`flex-1 sm:flex-none h-11 sm:w-11 rounded-xl flex items-center justify-center transition-all border ${
-              isRecording
-                ? "bg-red-500 border-red-500 text-white animate-pulse"
-                : "bg-accent-secondary/5 text-accent-secondary border-accent-secondary/20"
-            }`}
-          >
-            {isRecording ? <Square className="w-5 h-5" /> : <Mic className="w-5 h-5 opacity-70" />}
-          </button>
-
-          <div className="relative flex-1 sm:flex-none">
-            <button
-              onClick={() => setShowEmoji(!showEmoji)}
-              className={`w-full sm:w-11 h-11 rounded-xl flex items-center justify-center transition-all border ${
-                showEmoji
-                  ? "bg-accent-primary text-bg-base"
-                  : "bg-accent-primary/5 text-accent-primary border-accent-primary/20"
-              }`}
-            >
-              <Smile className="w-5 h-5 opacity-70" />
-            </button>
-
-            {showEmoji && (
-              <div className="fixed sm:absolute bottom-20 sm:bottom-full left-1/2 sm:left-0 -translate-x-1/2 sm:translate-x-0 sm:mb-4 z-[1000] shadow-2xl border border-accent-primary/20 rounded-2xl overflow-hidden">
-                <EmojiPicker
-                  theme="dark"
-                  onEmojiClick={(e) => setInput((p) => p + e.emoji)}
-                  width={280}
-                />
-              </div>
-            )}
+      <div className="max-w-4xl mx-auto flex items-end gap-3 sm:gap-4 relative">
+        
+        {/* EMOJI PICKER POPUP - Responsive Positioning */}
+        {showEmoji && (
+          <div className="absolute bottom-[calc(100%+8px)] left-0 w-full sm:w-[350px] z-[1000] animate-in slide-in-from-bottom-2 duration-300">
+            <div className="bg-bg-base border border-accent-primary/30 rounded-sm overflow-hidden shadow-[0_0_50px_rgba(0,255,65,0.15)]">
+              <EmojiPicker
+                theme="dark"
+                onEmojiClick={(e) => setInput((p) => p + e.emoji)}
+                width="100%"
+                height={350}
+                lazyLoadEmojis={true}
+                searchPlaceholder="PROTO_SEARCH..."
+              />
+            </div>
           </div>
+        )}
+
+        {/* WHATSAPP STYLE INPUT WRAPPER */}
+        <div className="flex-grow flex items-end bg-bg-input border border-accent-primary/20 rounded-sm px-2 py-0.5 transition-all group focus-within:border-accent-primary/50 relative">
+          
+          {/* EMBEDDED UTILITY TOOLS (LEFT) - Better Spacing */}
+          <div className="flex items-center gap-1 mb-1 mr-2 border-r border-accent-primary/10 pr-2">
+             <button
+                onClick={() => setShowEmoji(!showEmoji)}
+                className={`w-9 h-9 rounded-sm flex items-center justify-center transition-colors ${showEmoji ? "text-accent-primary bg-accent-primary/10" : "text-accent-primary/40 hover:text-accent-primary"}`}
+             >
+                <Smile className="w-5.5 h-5.5" />
+             </button>
+             
+             <label className="w-9 h-9 rounded-sm flex items-center justify-center text-accent-primary/40 hover:text-accent-primary transition-colors cursor-pointer bg-transparent">
+                <Paperclip className="w-5 h-5" />
+                <input type="file" className="hidden" onChange={handleFileSelect} />
+             </label>
+          </div>
+
+          <textarea
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) =>
+              e.key === "Enter" && !e.shiftKey && (e.preventDefault(), onSendWrapper())
+            }
+            placeholder="ENTRY_PAYLOAD..."
+            className="flex-grow bg-transparent border-none px-1 py-3 text-sm focus:outline-none resize-none min-h-[44px] max-h-[150px] scrollbar-none placeholder:text-accent-primary/10 text-accent-primary leading-relaxed font-mono"
+            onInput={(e) => {
+              e.target.style.height = "auto";
+              e.target.style.height = Math.min(e.target.scrollHeight, 150) + "px";
+            }}
+          />
         </div>
 
-        {/* INPUT + SEND */}
-        <div className="flex w-full items-end gap-2">
-          
-          <div className="flex-grow relative flex items-center">
-            <div className="absolute left-3 top-3 text-accent-primary/40 hidden md:block">
-              <ChevronRight className="w-4 h-4" />
-            </div>
-
-            <textarea
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) =>
-                e.key === "Enter" && !e.shiftKey && (e.preventDefault(), handleSend())
-              }
-              placeholder="Type a message..."
-              className="w-full bg-bg-base/50 border border-accent-primary/20 rounded-xl px-4 md:pl-10 pr-4 py-3 text-sm focus:outline-none focus:border-accent-primary resize-none max-h-[120px] overflow-y-auto"
-              onInput={(e) => {
-                e.target.style.height = "auto";
-                e.target.style.height = Math.min(e.target.scrollHeight, 120) + "px";
-              }}
-            />
-          </div>
-
-          <button
-            onClick={handleSend}
-            disabled={!input.trim() || !isConnected}
-            className="h-11 min-w-[44px] px-3 sm:px-0 sm:w-11 bg-accent-primary text-bg-base rounded-xl flex items-center justify-center transition-all disabled:opacity-30"
-          >
-            <Send className={`w-5 h-5 ${!isConnected ? 'opacity-30' : ''}`} />
-          </button>
+        {/* DYNAMIC ACTION BUTTON (RIGHT) - Adopted text-green change */}
+        <div className="shrink-0 flex items-center mb-1">
+           {!input.trim() ? (
+              <button
+                onClick={handleMicToggle}
+                className={`w-11 h-11 sm:w-12 sm:h-12 rounded-sm flex items-center justify-center transition-all ${
+                  isRecording
+                    ? "bg-red text-white animate-pulse ring-4 ring-red/20 shadow-[0_0_25px_rgba(255,0,0,0.4)]"
+                    : "bg-accent-primary text-white shadow-[0_0_15px_var(--accent-primary-glow)] hover:scale-105 active:scale-90"
+                }`}
+              >
+                {isRecording ? <Square className="w-5 h-5" /> : <Mic className="w-5.5 h-5.5" />}
+              </button>
+           ) : (
+              <button
+                onClick={onSendWrapper}
+                disabled={!isConnected && status !== "ready"} // Relaxed disable during setup
+                className="w-11 h-11 sm:w-12 sm:h-12 bg-accent-primary text-green rounded-sm flex items-center justify-center transition-all disabled:opacity-30 shadow-[0_0_20px_var(--accent-primary-glow)] hover:scale-105 active:scale-95"
+              >
+                <Send className="w-5.5 h-5.5 ml-0.5" />
+              </button>
+           )}
         </div>
       </div>
     </div>

@@ -77,7 +77,7 @@ export default function ChatHeader({
            <div className="hidden md:flex items-center gap-3">
               <button 
                 onClick={() => setVpnEnabled(!vpnEnabled)}
-                className={`group w-11 h-11 rounded-xl flex items-center justify-center transition-all border ${vpnEnabled ? 'bg-accent-primary border-accent-primary text-bg-base shadow-[0_0_15px_var(--accent-primary-glow)]' : 'bg-bg-base/40 border-accent-primary/20 text-accent-primary/60 hover:border-accent-primary'}`}
+                className={`group w-11 h-11 rounded-xl flex items-center justify-center transition-all border ${vpnEnabled ? 'bg-black border-white text-white shadow-[0_0_15px_var(--accent-primary-glow)]' : 'bg-black border-white text-white hover:border-accent-primary'}`}
                 title={vpnEnabled ? "VPN_ACTIVE (TURN/STUN_ENABLED)" : "ENABLE_VPN (FORCED_RELAY)"}
               >
                 {vpnEnabled ? <Shield className="w-5 h-5" /> : <ShieldOff className="w-5 h-5 opacity-70" />}

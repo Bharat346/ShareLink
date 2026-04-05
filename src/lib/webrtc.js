@@ -64,14 +64,12 @@ export class FileTransferManager {
     };
 
     this.pc.onconnectionstatechange = () => {
-      this.onLog(
-        `Link State: ${this.pc.connectionState.toUpperCase()}`,
-        "info",
-      );
-      if (
-        this.pc.connectionState === "disconnected" ||
-        this.pc.connectionState === "failed"
-      ) {
+      const state = this.pc.connectionState;
+      this.onLog(`Link Interface State: ${state.toUpperCase()}`, "info");
+      
+      if (state === "connected") {
+        this.onStatus("connected");
+      } else if (state === "disconnected" || state === "failed" || state === "closed") {
         this.onStatus("disconnected");
       }
     };
@@ -91,6 +89,14 @@ export class FileTransferManager {
     }
   }
 
+  handleSignal(data) {
+    if (data.description) {
+      this.handleDescription(data.description);
+    } else if (data.candidate) {
+      this.addIceCandidate(data.candidate);
+    }
+  }
+
   setupDataChannel(channel) {
     this.dataChannel = channel;
     this.dataChannel.binaryType = "arraybuffer";
@@ -101,19 +107,18 @@ export class FileTransferManager {
     };
 
     this.dataChannel.onmessage = async (event) => {
-      // console.log("L102 : webrtc.js : event : ", event, typeof event);
       if (typeof event.data === "string") {
         const metadata = JSON.parse(event.data);
 
         if (metadata.type === "START_TRANSFER") {
           this.pendingFile = metadata;
           this.onLog(`Incoming payload: ${metadata.fileName}`, "info");
-          this.onStatus("awaiting-acceptance");
+          this.onStatus("file-request-received", metadata);
         } else if (metadata.type === "AUDIO_MSG") {
           this.pendingFile = metadata;
           this.onLog(`Incoming audio signal: ${metadata.fileName}`, "info");
           this.prepareForAudioReceive(metadata);
-          this.onStatus("audio-start", metadata);
+          this.onStatus("audio-received", metadata);
         } else if (metadata.type === "ACCEPT_TRANSFER") {
           if (this.acceptanceResolve) {
             this.acceptanceResolve(true);
@@ -125,8 +130,11 @@ export class FileTransferManager {
             this.acceptanceResolve(false);
             this.acceptanceResolve = null;
           }
+          this.onStatus("connected");
         } else if (metadata.type === "CHAT") {
-          this.onStatus("chat-message", metadata);
+          this.onStatus("chat-received", metadata);
+        } else if (metadata.type === "CALL_SIGNAL") {
+          this.onStatus("call-signal-received", metadata);
         } else if (metadata.type === "END_TRANSFER") {
           await this.finishDownload();
         }
@@ -136,26 +144,25 @@ export class FileTransferManager {
     };
 
     this.dataChannel.onclose = () => {
-      this.onLog("P2P Link Suspended", "warning");
-      this.onStatus("disconnected");
+      this.onLog("Data Link Suspended", "warning");
+      // Only set disconnected if the overall peer connection is also failing
+      if (this.pc.connectionState !== "connected") {
+        this.onStatus("disconnected");
+      }
     };
 
     this.dataChannel.onerror = (error) => {
-      console.error("DataChannel Error:", error);
-      // Silent suppress of background close errors, only log fatal Link errors
+      // RTCErrorEvents sometimes contain little detail; log generically if closed
       if (this.dataChannel?.readyState !== "closed") {
-        this.onLog(
-          `Link Interface Error: ${error.message || "Negotiation Stall"}`,
-          "error",
-        );
+         this.onLog(`Link Interface Signal: High Latency/Negotiation Overhead`, "info");
       }
     };
   }
 
   async sendFile(file) {
     if (!this.dataChannel || this.dataChannel.readyState !== "open") {
-      this.onLog("Link not ready for binary expression", "error");
-      return;
+      this.onLog("Link Interface NOT_READY: Expression dropped", "error");
+      return false;
     }
 
     this.isSending = true;
@@ -170,7 +177,7 @@ export class FileTransferManager {
     );
 
     this.onLog("Waiting for node acceptance...", "info");
-    this.onStatus("waiting-for-peer");
+    this.onStatus("transferring");
 
     const accepted = await new Promise((resolve) => {
       this.acceptanceResolve = resolve;
@@ -225,34 +232,54 @@ export class FileTransferManager {
       this.isSending = false;
       this.onStatus("connected");
       this.onProgress(0);
+      return true;
     } catch (err) {
       this.onLog(`Transfer Failed: ${err.message}`, "error");
       this.isSending = false;
       this.onStatus("connected");
+      return false;
     } finally {
       reader.releaseLock();
     }
   }
 
-  sendChat(message, alias) {
-    // console.log("L225 : webrtc.js : sendChat : ", message, alias);
+  sendChat(message, alias, id) {
     if (this.dataChannel?.readyState === "open") {
-      this.dataChannel.send(
-        JSON.stringify({
-          type: "CHAT",
-          message,
-          alias,
-          time: new Date().toLocaleTimeString(),
-        }),
-      );
-      this.onLog(
-        `Injected local expression: ${message.slice(0, 10)}...`,
-        "info",
-      );
-      return true;
+      try {
+        this.dataChannel.send(
+          JSON.stringify({
+            type: "CHAT",
+            id: id || crypto.randomUUID(),
+            message,
+            alias,
+            time: new Date().toLocaleTimeString(),
+          }),
+        );
+        this.onLog(
+          `Injected local expression: ${message.slice(0, 10)}...`,
+          "info",
+        );
+        return true;
+      } catch (err) {
+        this.onLog(`Signal Drop: ${err.message}`, "error");
+        return false;
+      }
     } else {
-      this.onLog("Data Link Closed: Expresson dropped", "error");
+      this.onLog("Data Link Closed: Message dropped", "error");
+      return false;
     }
+  }
+
+  async acceptFile(fileName) {
+      if (this.pendingFile && this.pendingFile.fileName === fileName) {
+           await this.prepareForDownload(this.pendingFile);
+      }
+  }
+
+  async rejectFile(fileName) {
+      if (this.pendingFile && this.pendingFile.fileName === fileName) {
+          this.rejectTransfer();
+      }
   }
 
   async prepareForAudioReceive(metadata) {
@@ -280,14 +307,13 @@ export class FileTransferManager {
     const hasFilePicker = typeof window.showSaveFilePicker === "function" && window.isSecureContext;
     let pickerSuccess = false;
 
-    // 1. Try Native Picker FIRST (Preserves User Activation in Chrome)
     if (hasFilePicker) {
       try {
         const handle = await window.showSaveFilePicker({
           suggestedName: this.fileName,
         });
         this.currentFileStream = await handle.createWritable();
-        this.fileName = handle.name; // Use the name from the picker
+        this.fileName = handle.name;
         this.onLog(`Direct link established: ${this.fileName}`, "success");
         pickerSuccess = true;
       } catch (err) {
@@ -301,27 +327,25 @@ export class FileTransferManager {
       }
     }
 
-    // 2. Fallback for Firefox/Mobile/Safari
     if (!pickerSuccess) {
-      const customName = prompt("Save file as:", this.fileName);
+      const customName = prompt("PROTOCOL_SAVE_NODE: Save file as:", this.fileName);
       if (customName === null) {
-        this.onLog("Download rejected by user", "warning");
+        this.onLog("Download REJECTED by user", "warning");
         this.rejectTransfer();
         this.isReceiving = false;
         return;
       }
       this.fileName = customName || this.fileName;
-      this.onLog("Using Browser Memory Relay", "info");
+      // Sanitize fileName just in case browser or user stripped it
+      if (!this.fileName.includes('.') && metadata.fileName.includes('.')) {
+         this.fileName += '.' + metadata.fileName.split('.').pop();
+      }
+      this.onLog(`Using Relay Buffer: ${this.fileName}`, "info");
       this.receivedChunks = [];
     }
 
-    this.onStatus("downloading");
+    this.onStatus("transferring");
     this.dataChannel.send(JSON.stringify({ type: "ACCEPT_TRANSFER" }));
-    
-    if (this.acceptanceResolve) {
-      this.acceptanceResolve(true);
-      this.acceptanceResolve = null;
-    }
   }
 
   rejectTransfer() {
@@ -410,19 +434,51 @@ export class FileTransferManager {
     }
   }
 
-  async toggleAudioCall(enabled, onRemoteStream) {
-    if (enabled) {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      this.localStream = stream;
-      stream.getTracks().forEach((t) => this.pc.addTrack(t, stream));
-      this.pc.ontrack = (e) => onRemoteStream(e.streams[0]);
-    } else {
-      if (this.localStream)
+  async toggleAudio() {
+    try {
+      if (this.localStream) {
+        this.onLog("Severing voice link...", "warning");
+        
+        // Notify peer via signaling server (more reliable during renegotiation)
+        this.sendSignal({ type: "CALL_SIGNAL", action: "END" });
+
         this.localStream.getTracks().forEach((t) => t.stop());
-      this.pc
-        .getSenders()
-        .forEach((s) => s.track?.kind === "audio" && this.pc.removeTrack(s));
+        this.localStream = null;
+        
+        this.pc.getSenders().forEach((s) => {
+          if (s.track?.kind === "audio") {
+            this.pc.removeTrack(s);
+          }
+        });
+
+        if (this.pc.signalingState === 'stable') {
+           const offer = await this.pc.createOffer();
+           await this.pc.setLocalDescription(offer);
+           this.sendSignal({ description: this.pc.localDescription });
+        }
+
+        return true;
+      } else {
+        this.onLog("Initializing voice capture...", "info");
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        this.localStream = stream;
+        stream.getTracks().forEach((t) => this.pc.addTrack(t, stream));
+        
+        if (this.pc.signalingState === 'stable') {
+           const offer = await this.pc.createOffer();
+           await this.pc.setLocalDescription(offer);
+           this.sendSignal({ description: this.pc.localDescription });
+        }
+        return true;
+      }
+    } catch (err) {
+      this.onLog(`Voice Hardware Error: ${err.name}`, "error");
+      return false;
     }
+  }
+
+  sendCallSignal(action) {
+     this.sendSignal({ callAction: action });
   }
 
   close() {
