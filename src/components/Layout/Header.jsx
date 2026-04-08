@@ -1,3 +1,5 @@
+"use client";
+
 import { Shield, RefreshCw, Gauge } from "lucide-react";
 
 export default function Header({
@@ -10,49 +12,35 @@ export default function Header({
   const isConnected = status === "connected";
 
   return (
-    <header className="flex flex-col md:flex-row items-center justify-between gap-8 mb-16 animate-in font-mono">
-      <div className="flex items-center gap-6">
-        <div className="w-16 h-16 flex items-center justify-center bg-accent-primary/10 rounded-sm border border-accent-primary/20 shadow-[0_0_50px_rgba(0,255,65,0.05)] transition-transform hover:scale-105">
-          <Shield className="w-8 h-8 text-accent-primary shadow-2xl" />
+    <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 sm:gap-8 mb-8 sm:mb-12">
+      <div className="flex items-center gap-4 sm:gap-6">
+        <div className="w-12 h-12 sm:w-14 sm:h-14 flex items-center justify-center bg-accent-primary/10 rounded-sm border border-accent-primary/20 shadow-[0_0_30px_var(--accent-primary-glow)] transition-transform hover:scale-105">
+          <Shield className="w-6 h-6 sm:w-7 sm:h-7 text-accent-primary text-glow" />
         </div>
         <div>
-          <h1 className="text-4xl font-bold text-text-primary tracking-tight uppercase">
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-text-primary tracking-tight uppercase">
             SHARE<span className="text-accent-primary">_LINK</span>
           </h1>
-          <div className="flex items-center gap-3 mt-1">
-            <span className="text-[10px] font-bold text-text-muted uppercase tracking-[0.3em]">
-              Protocol L4 Sync
+          <div className="flex items-center gap-2 sm:gap-3 mt-1 flex-wrap">
+            <span className="text-[9px] sm:text-[10px] font-bold text-text-muted uppercase tracking-[0.2em]">
+              Protocol L4
             </span>
-            <div className="w-1.5 h-1.5 bg-accent-primary/20"></div>
-            <span
-              className={`text-[10px] font-bold uppercase tracking-[0.2em] ${isConnected ? "text-accent-primary" : "text-accent-red animate-pulse"}`}
-            >
-              {isConnected ? "Secure Tunnel Active" : `System: ${status}`}
+            <div className="w-1 h-1 bg-accent-primary/20"></div>
+            <span className={`text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.15em] ${isConnected ? "text-accent-primary" : "text-accent-red animate-pulse"}`}>
+              {isConnected ? "Secure Tunnel" : `System: ${status}`}
             </span>
           </div>
         </div>
       </div>
 
-      <div className="flex items-center gap-4">
-        {/* NETWORK STATS */}
-        <div className="glass px-6 py-3.5 rounded-sm flex items-center gap-4 shadow-xl border border-accent-primary/10">
-          <div className="flex items-center gap-3 bg-bg-base/40 px-4 py-2 rounded-sm border border-accent-primary/5 min-w-[100px] justify-center">
-            <Gauge
-              className={`w-4 h-4 ${isServerConnected ? "text-accent-primary" : "text-red-500 opacity-50"}`}
-            />
-            <span className="text-[10px] font-bold text-text-muted uppercase tracking-widest">
-              {isServerConnected ? `${speed} MB/s` : "0.0 MB/s"}
-            </span>
-          </div>
-        </div>
+      <div className="flex items-center gap-3 sm:gap-4 w-full sm:w-auto">
 
         <button
           onClick={syncConnection}
-          className="w-12 h-12 flex items-center justify-center rounded-sm bg-bg-surface border border-accent-primary/20 text-text-secondary hover:text-accent-primary hover:border-accent-primary transition-all active:scale-95 shadow-lg group"
+          className="w-11 h-11 sm:w-12 sm:h-12 flex items-center justify-center rounded-sm glass border border-accent-primary/20 text-text-secondary hover:text-accent-primary hover:border-accent-primary transition-all active:scale-95 shadow-lg group"
+          title="Refresh connection"
         >
-          <RefreshCw
-            className={`w-5 h-5 transition-transform ${syncing ? "animate-spin" : "group-hover:rotate-180 duration-500"}`}
-          />
+          <RefreshCw className={`w-5 h-5 transition-transform ${syncing ? "animate-spin" : "group-hover:rotate-180 duration-500"}`} />
         </button>
       </div>
     </header>

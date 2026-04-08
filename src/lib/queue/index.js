@@ -5,7 +5,7 @@
  * retry logic, and no data loss guarantees.
  */
 
-import { generateId, delay } from '../utils/helpers';
+import { generateId, delay } from "../../utils/helpers";
 
 export class MessageQueue {
   constructor(sendFn) {
@@ -48,12 +48,12 @@ export class MessageQueue {
   /**
    * Producer: Enqueue a message/chunk for sending
    */
-  enqueue(data, priority = 'normal') {
+  enqueue(data, priority = "normal") {
     if (this.queue.length >= this.maxQueueSize) {
       this.onBackpressure && this.onBackpressure(this.queue.length);
 
       // Drop lowest priority if full
-      const lowIdx = this.queue.findIndex((q) => q.priority === 'low');
+      const lowIdx = this.queue.findIndex((q) => q.priority === "low");
       if (lowIdx !== -1) {
         this.queue.splice(lowIdx, 1);
       }
@@ -66,13 +66,13 @@ export class MessageQueue {
       retries: 0,
       maxRetries: this.maxRetries,
       createdAt: Date.now(),
-      status: 'pending',
+      status: "pending",
     };
 
     // Insert by priority
-    if (priority === 'high') {
+    if (priority === "high") {
       const idx = this.queue.findIndex(
-        (q) => q.status !== 'processing' && q.priority !== 'high'
+        (q) => q.status !== "processing" && q.priority !== "high",
       );
 
       if (idx === -1) {
@@ -94,7 +94,7 @@ export class MessageQueue {
   /**
    * Enqueue multiple items (batch producer)
    */
-  enqueueBatch(items, priority = 'normal') {
+  enqueueBatch(items, priority = "normal") {
     return items.map((data) => this.enqueue(data, priority));
   }
 
@@ -109,36 +109,36 @@ export class MessageQueue {
     while (this.queue.length > 0 && !this.isPaused) {
       const item = this.queue[0];
 
-      if (!item || item.status === 'completed' || item.status === 'failed') {
+      if (!item || item.status === "completed" || item.status === "failed") {
         this.queue.shift();
         continue;
       }
 
-      item.status = 'processing';
+      item.status = "processing";
 
       try {
         // Attempt sending - sendFn should return true on success
         const result = await this.sendFn(item.data);
-        
+
         // Handle both true and undefined (if non-returning fn) as success
         // but explicitly check for false
         if (result !== false) {
-          item.status = 'completed';
+          item.status = "completed";
           this.queue.shift();
           this.onItemProcessed && this.onItemProcessed(item);
         } else {
-          throw new Error('Send signal failed');
+          throw new Error("Send signal failed");
         }
       } catch (err) {
         item.retries++;
         console.warn(`Queue processing error (attempt ${item.retries}):`, err);
 
         if (item.retries >= item.maxRetries) {
-          item.status = 'failed';
+          item.status = "failed";
           this.queue.shift();
           this.onItemFailed && this.onItemFailed(item);
         } else {
-          item.status = 'pending';
+          item.status = "pending";
           // Exponential backoff
           await delay(this.retryDelay * Math.pow(2, item.retries - 1));
         }
@@ -190,9 +190,9 @@ export class MessageQueue {
   getStats() {
     return {
       total: this.queue.length,
-      pending: this.queue.filter((q) => q.status === 'pending').length,
-      processing: this.queue.filter((q) => q.status === 'processing').length,
-      failed: this.queue.filter((q) => q.status === 'failed').length,
+      pending: this.queue.filter((q) => q.status === "pending").length,
+      processing: this.queue.filter((q) => q.status === "processing").length,
+      failed: this.queue.filter((q) => q.status === "failed").length,
     };
   }
 
