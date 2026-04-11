@@ -19,6 +19,12 @@ export function stopCallLocally(rtcRef, setIsCallActive, setIsIncomingCall, setI
 export async function acceptCall(incomingStream, remoteAudioRef, rtcRef, setIsCallActive, setIsIncomingCall, setIsOutgoingCall) {
   if (incomingStream && remoteAudioRef.current) {
     toast("Activating Local Feed...", { icon: "🎙️" });
+    
+    // Safety: ensure we are in incoming state before activating
+    if (rtcRef.current?.call) {
+      rtcRef.current.call.isIncoming = true;
+    }
+    
     const micSuccess = await rtcRef.current?.toggleAudio();
 
     if (!micSuccess) {
@@ -29,7 +35,7 @@ export async function acceptCall(incomingStream, remoteAudioRef, rtcRef, setIsCa
     setIsCallActive(true);
     setIsIncomingCall(false);
     setIsOutgoingCall(false);
-    rtcRef.current?.sendCallSignal("ACCEPT");
+    // Note: toggleAudio already handles the signaling ACCEPT if it isIncoming
   }
 }
 

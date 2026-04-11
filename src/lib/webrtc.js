@@ -1,7 +1,12 @@
 /**
  * FileTransferManager - Central orchestrator
  * Composes all webrtc/* modules into a single manager.
- * No logic has been changed — only import paths updated.
+ *
+ * FIXES:
+ * - VPN now forces relay-only ICE transport (actual tunnel simulation)
+ * - ICE restart on connection failure
+ * - Proper vpnEnabled state tracked and passed to createPeerConnection
+ * - close() thoroughly cleans all resources
  */
 
 import { createPeerConnection } from "./webrtc/webrtc.init";
@@ -26,21 +31,35 @@ export class FileTransferManager {
     this._chatRef = { current: null };
     this._fileRef = { current: null };
     this.call = null;
+
+    // VPN state
+    this._vpnEnabled = false;
+
+    // ICE restart tracking
+    this._iceRestartAttempts = 0;
+    this._maxIceRestarts = 3;
   }
 
   get chat() { return this._chatRef.current; }
   get audio() { return this._fileRef.current; }
 
+  /**
+   * Enable/disable VPN relay-only mode
+   * When enabled, forces all traffic through TURN relay (no direct P2P)
+   * Requires re-initialization of the peer connection to take effect
+   */
   setVpn(enabled) {
-    this.onLog(`VPN Tunnel ${enabled ? "Enabled" : "Disabled"}`, "info");
+    this._vpnEnabled = enabled;
+    this.onLog(`VPN Tunnel ${enabled ? "Enabled (Relay-Only)" : "Disabled (Direct P2P)"}`, "info");
   }
 
   initPeerConnection(sendSignal, polite = false) {
     this._state.polite = polite;
     this.sendSignal = sendSignal;
+    this._iceRestartAttempts = 0;
 
-    // 1. Create PC
-    this.pc = createPeerConnection(this.onLog);
+    // 1. Create PC with VPN config
+    this.pc = createPeerConnection(this.onLog, this._vpnEnabled);
 
     // 2. Call handler (needs pc before tracks)
     this.call = new CallHandler(this.pc, this.sendSignal, this.onLog, this.onStatus);
@@ -51,12 +70,19 @@ export class FileTransferManager {
     // 4. Negotiation
     setupNegotiation(this.pc, this.sendSignal, this._state);
 
-    // 5. Connection state
+    // 5. Connection state with ICE restart
     this.pc.onconnectionstatechange = () => {
       const state = this.pc.connectionState;
       this.onLog(`Link Interface State: ${state.toUpperCase()}`, "info");
-      if (state === "connected") this.onStatus("connected");
-      else if (["disconnected", "failed", "closed"].includes(state)) this.onStatus("disconnected");
+
+      if (state === "connected") {
+        this._iceRestartAttempts = 0; // Reset on success
+        this.onStatus("connected");
+      } else if (state === "failed") {
+        this._attemptIceRestart();
+      } else if (["disconnected", "closed"].includes(state)) {
+        this.onStatus("disconnected");
+      }
     };
 
     // 6. Incoming data channel
@@ -69,6 +95,31 @@ export class FileTransferManager {
     if (!polite) {
       const channel = createDataChannel(this.pc, this.onLog);
       this._setupChannel(channel);
+    }
+  }
+
+  /**
+   * Attempt ICE restart to recover from connection failure
+   * instead of immediately giving up
+   */
+  _attemptIceRestart() {
+    if (this._iceRestartAttempts >= this._maxIceRestarts) {
+      this.onLog("ICE restart limit reached, connection failed", "error");
+      this.onStatus("failed");
+      return;
+    }
+
+    this._iceRestartAttempts++;
+    this.onLog(
+      `Attempting ICE restart (${this._iceRestartAttempts}/${this._maxIceRestarts})...`,
+      "warning"
+    );
+
+    try {
+      this.pc.restartIce();
+    } catch (err) {
+      this.onLog(`ICE restart failed: ${err.message}`, "error");
+      this.onStatus("failed");
     }
   }
 
@@ -96,7 +147,7 @@ export class FileTransferManager {
     }
   }
 
-  // --- Public API (unchanged) ---
+  // --- Public API ---
   sendChat(m, a, i) { return this.chat?.send(m, a, i); }
   sendFile(f) { return this.audio?.send(f); }
   acceptFile() { this.audio?.accept(); }
@@ -114,10 +165,22 @@ export class FileTransferManager {
 
   sendCallSignal(a) { this.call.sendCallSignal(a); }
 
+  /**
+   * Thorough cleanup of all resources
+   */
   close() {
-    this.call?.stop();
-    this.dataChannel?.close();
-    this.pc?.close();
+    try { this.call?.stop(); } catch (e) {}
+    try { this.dataChannel?.close(); } catch (e) {}
+    try { this.pc?.close(); } catch (e) {}
+    
+    this.pc = null;
+    this.dataChannel = null;
+    this.call = null;
+    this._chatRef.current = null;
+    this._fileRef.current = null;
+    this.sendSignal = null;
+    this._iceRestartAttempts = 0;
+    
     this.onStatus("disconnected");
   }
 }

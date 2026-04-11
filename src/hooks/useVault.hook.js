@@ -1,12 +1,32 @@
-import { useState, useEffect, useRef } from "react";
+/**
+ * useVaultHook - Central connection state manager for the web app
+ *
+ * FIXES:
+ * - Fixed stale closure in onWsMessage (peerId/peerAlias now use refs)
+ * - Added RTC init lock to prevent concurrent initRTC() calls
+ * - Fixed reconnection cleanup (clears ping interval properly)
+ * - Message deduplication for chat messages
+ * - Proper cleanup on unmount
+ */
+
+import { useState, useEffect, useRef, useCallback } from "react";
 import { FileTransferManager } from "../lib/webrtc";
 import { MessageQueue } from "../lib/queue";
 import { toast } from "react-hot-toast";
 
 // Modular vault actions
 import { connectToSignalling } from "./vault/useSignaling";
-import { startSession as _startSession, joinSession as _joinSession, terminateConnection } from "./vault/useSessionActions";
-import { stopCallLocally as _stopCallLocally, acceptCall as _acceptCall, rejectCall as _rejectCall, toggleCall as _toggleCall } from "./vault/useCallActions";
+import {
+  startSession as _startSession,
+  joinSession as _joinSession,
+  terminateConnection,
+} from "./vault/useSessionActions";
+import {
+  stopCallLocally as _stopCallLocally,
+  acceptCall as _acceptCall,
+  rejectCall as _rejectCall,
+  toggleCall as _toggleCall,
+} from "./vault/useCallActions";
 import { handleRTCStatus as _handleRTCStatus, waitForConnection } from "./vault/useRTCHandler";
 
 export default function useVaultHook(initialSessionId = null) {
@@ -21,8 +41,10 @@ export default function useVaultHook(initialSessionId = null) {
   const [isCallActive, setIsCallActive] = useState(false);
   const logContainerRef = useRef(null);
 
+  // Use refs for values accessed in callbacks to avoid stale closures
   const [peerId, setPeerId] = useState("");
   const [peerAlias, setPeerAlias] = useState("");
+  const peerIdRef = useRef("");
   const peerAliasRef = useRef("");
 
   const wsRef = useRef(null);
@@ -30,6 +52,9 @@ export default function useVaultHook(initialSessionId = null) {
   const remoteAudioRef = useRef(null);
   const [clientId, setClientId] = useState(null);
   const [alias, setAlias] = useState("");
+
+  // RTC init lock to prevent concurrent initRTC() calls
+  const rtcInitLock = useRef(false);
 
   useEffect(() => {
     const savedId = sessionStorage.getItem("vault_node_id");
@@ -41,6 +66,10 @@ export default function useVaultHook(initialSessionId = null) {
 
   const sessionIdRef = useRef(initialSessionId || "");
   const [sessionId, setSessionId] = useState(initialSessionId || "");
+  const vpnEnabledRef = useRef(false);
+
+  // Keep refs in sync with state
+  useEffect(() => { vpnEnabledRef.current = vpnEnabled; }, [vpnEnabled]);
 
   // --- Message Queue (lazy init) ---
   const sendQueue = useRef(null);
@@ -54,27 +83,41 @@ export default function useVaultHook(initialSessionId = null) {
         if (!success) return false;
       } else if (payload.type === "file") {
         const success = await rtcRef.current.sendFile(payload.file);
-        if (!success) { toast.error("Transmission Interrupted", { id: payload.id }); return false; }
+        if (!success) {
+          toast.error("Transmission Interrupted", { id: payload.id });
+          return false;
+        }
       }
       return true;
     });
   }
 
   // --- Helpers ---
-  const addLog = (msg, type = "info") => {
+  const addLog = useCallback((msg, type = "info") => {
     setLogs((prev) => [...prev, { msg, type, time: new Date().toLocaleTimeString() }]);
-  };
-  const clearLogs = () => setLogs([]);
+  }, []);
+  const clearLogs = useCallback(() => setLogs([]), []);
 
-  const stopCallLocallyFn = () => _stopCallLocally(rtcRef, setIsCallActive, setIsIncomingCall, setIsOutgoingCall, setIncomingStream, remoteAudioRef);
+  const stopCallLocallyFn = useCallback(() => {
+    _stopCallLocally(rtcRef, setIsCallActive, setIsIncomingCall, setIsOutgoingCall, setIncomingStream, remoteAudioRef);
+  }, []);
 
   // --- Signaling message handler ---
   const signalQueue = useRef([]);
 
-  const onWsMessage = async (e) => {
-    const data = JSON.parse(e.data);
+  // Use ref for the message handler to avoid stale closures
+  const onWsMessageRef = useRef(null);
+  onWsMessageRef.current = async (e) => {
+    let data;
+    try {
+      data = JSON.parse(e.data);
+    } catch {
+      return;
+    }
+
     switch (data.type) {
-      case "PONG": break;
+      case "PONG":
+        break;
       case "ASSIGNED_IP":
         setClientId(data.clientId);
         setAlias(data.alias);
@@ -93,8 +136,15 @@ export default function useVaultHook(initialSessionId = null) {
         addLog(`Joined Bridge: ${data.sessionId}`, "success");
         break;
       case "PEER_READY":
-        if (rtcRef.current?.pc.connectionState === "connected" && peerId === data.peerId) break;
+        // Guard: Skip if already connected to this peer
+        if (
+          rtcRef.current?.pc?.connectionState === "connected" &&
+          peerIdRef.current === data.peerId
+        ) {
+          break;
+        }
         setPeerId(data.peerId);
+        peerIdRef.current = data.peerId;
         setPeerAlias(data.peerAlias);
         peerAliasRef.current = data.peerAlias;
         addLog(`Handshake Role: ${data.polite ? "POLITE" : "IMPOLITE"}`, "info");
@@ -109,11 +159,16 @@ export default function useVaultHook(initialSessionId = null) {
       case "SIGNAL":
         if (rtcRef.current) rtcRef.current.handleSignal(data);
         else signalQueue.current.push(data);
+        
         if (data.callAction) {
           const action = data.callAction;
-          if (action === "CALL_INITIATE") setIsIncomingCall(true);
-          else if (["END", "CANCEL", "REJECT"].includes(action)) {
-            toast(action === "END" ? "Remote Node Severed Feed" : "Call Abandoned", { icon: "📵" });
+          if (action === "CALL_INITIATE") {
+            // Guard: don't show incoming UI if we are already calling
+            if (!isOutgoingCall && !isCallActive) {
+              setIsIncomingCall(true);
+            }
+          } else if (["END", "CANCEL", "REJECT"].includes(action)) {
+            toast(action === "END" ? "Feed Severed" : "Call Rebuffed", { icon: "📵" });
             stopCallLocallyFn();
           } else if (action === "ACCEPT") {
             setIsOutgoingCall(false);
@@ -134,38 +189,83 @@ export default function useVaultHook(initialSessionId = null) {
     }
   };
 
-  // --- RTC Init ---
+  // Wrapper that delegates to the ref (always uses latest closure)
+  const onWsMessage = useCallback((e) => {
+    onWsMessageRef.current?.(e);
+  }, []);
+
+  // --- RTC Init (guarded) ---
   const initRTC = async (pid, polite = false) => {
-    if (rtcRef.current) rtcRef.current.close();
-    rtcRef.current = new FileTransferManager(
-      (m, t) => addLog(`[P2P] ${m}`, t),
-      (s, details) => _handleRTCStatus(s, details, setStatus, setMessages, peerAlias),
-      (p) => setProgress(p),
-    );
-    rtcRef.current.initPeerConnection((signal) => {
-      if (wsRef.current?.readyState === 1) {
-        wsRef.current.send(JSON.stringify({ type: "SIGNAL", targetId: pid, ...signal, sessionId: sessionIdRef.current }));
-      }
-    }, polite);
-    rtcRef.current.pc.ontrack = (event) => {
-      const stream = event.streams[0] || new MediaStream([event.track]);
-      setIncomingStream(stream);
-      setIsIncomingCall(true);
-      toast("Incoming Voice Link Detected", { icon: "📞" });
-    };
-    if (vpnEnabled) rtcRef.current.setVpn(true);
-    if (signalQueue.current.length > 0) {
-      signalQueue.current.forEach((s) => rtcRef.current.handleSignal(s));
-      signalQueue.current = [];
+    // Prevent concurrent initialization
+    if (rtcInitLock.current) {
+      addLog("RTC init already in progress, skipping", "warning");
+      return false;
     }
-    return true;
+    rtcInitLock.current = true;
+
+    try {
+      // Clean up previous connection
+      if (rtcRef.current) {
+        rtcRef.current.close();
+        rtcRef.current = null;
+      }
+
+      rtcRef.current = new FileTransferManager(
+        (m, t) => addLog(`[P2P] ${m}`, t),
+        (s, details) =>
+          _handleRTCStatus(
+            s,
+            details,
+            setStatus,
+            setMessages,
+            peerAliasRef.current,
+            (id) => sendQueue.current?.markAsAcknowledged(id)
+          ),
+        (p) => setProgress(p)
+      );
+
+      rtcRef.current.initPeerConnection((signal) => {
+        if (wsRef.current?.readyState === 1) {
+          wsRef.current.send(
+            JSON.stringify({
+              type: "SIGNAL",
+              targetId: pid,
+              ...signal,
+              sessionId: sessionIdRef.current,
+            }),
+          );
+        }
+      }, polite);
+
+      rtcRef.current.pc.ontrack = (event) => {
+        const stream = event.streams[0] || new MediaStream([event.track]);
+        setIncomingStream(stream);
+        setIsIncomingCall(true);
+        toast("Incoming Voice Link Detected", { icon: "📞" });
+      };
+
+      if (vpnEnabledRef.current) rtcRef.current.setVpn(true);
+
+      // Flush queued signals atomically
+      const queuedSignals = [...signalQueue.current];
+      signalQueue.current = [];
+      queuedSignals.forEach((s) => rtcRef.current.handleSignal(s));
+
+      return true;
+    } finally {
+      rtcInitLock.current = false;
+    }
   };
 
   // --- Lifecycle ---
   useEffect(() => {
     connectToSignalling(wsRef, addLog, setStatus, onWsMessage);
     return () => {
-      if (wsRef.current) { wsRef.current.onclose = null; wsRef.current.close(); }
+      if (wsRef.current) {
+        if (wsRef.current.pingInterval) clearInterval(wsRef.current.pingInterval);
+        wsRef.current.onclose = null;
+        wsRef.current.close();
+      }
       if (rtcRef.current) rtcRef.current.close();
     };
   }, []);
@@ -179,13 +279,15 @@ export default function useVaultHook(initialSessionId = null) {
   useEffect(() => {
     if (rtcRef.current) {
       rtcRef.current.setVpn(vpnEnabled);
-      toast(vpnEnabled ? "Secure VPN Routing: ON" : "Secure VPN Routing: OFF", { icon: vpnEnabled ? "🛡️" : "🔓" });
+      toast(vpnEnabled ? "Secure VPN Routing: ON" : "Secure VPN Routing: OFF", {
+        icon: vpnEnabled ? "🛡️" : "🔓",
+      });
     }
   }, [vpnEnabled]);
 
   useEffect(() => {
     if (status === "disconnected" || status === "failed") stopCallLocallyFn();
-  }, [status]);
+  }, [status, stopCallLocallyFn]);
 
   useEffect(() => {
     if (isCallActive && incomingStream && remoteAudioRef.current) {
@@ -201,52 +303,90 @@ export default function useVaultHook(initialSessionId = null) {
     }
   }, [isCallActive, incomingStream]);
 
-  // --- Chat ---
-  const sendChatMessage = (msg) => {
+  // --- Chat (direct send, no queue blocking) ---
+  const sendChatMessage = useCallback((msg) => {
     const isReady = rtcRef.current?.dataChannel?.readyState === "open";
     if (isReady) {
       const id = crypto.randomUUID();
-      sendQueue.current.enqueue({ type: "chat", message: msg, alias, id });
-      setMessages((prev) => [...prev, { id, message: msg, time: new Date().toLocaleTimeString(), side: "local", sender: alias }]);
+      // Send directly - DataChannel is ordered+reliable (SCTP/TCP-like)
+      // The ACK queue was blocking and dropping messages
+      rtcRef.current.sendChat(msg, alias, id);
+      setMessages((prev) => [
+        ...prev,
+        { id, message: msg, time: new Date().toLocaleTimeString(), side: "local", sender: alias },
+      ]);
     } else {
       toast.error("Bridge Offline: Peer not connected");
     }
-  };
+  }, [alias]);
 
   // --- Return ---
   return {
     isServerConnected: status !== "disconnected",
-    vpnEnabled, setVpnEnabled, status, sessionId,
+    vpnEnabled,
+    setVpnEnabled,
+    status,
+    sessionId,
     startSession: () => _startSession(wsRef),
     joinSession: (id) => _joinSession(wsRef, id),
-    messages, sendChatMessage,
+    messages,
+    sendChatMessage,
     handleFileSelect: (e) => {
       const file = e.target.files?.[0];
       if (file && rtcRef.current) {
         const id = crypto.randomUUID();
         sendQueue.current.enqueue({ type: "file", file, id });
         if (file.name.startsWith("VoiceNote_")) {
-          setMessages((prev) => [...prev, { type: "audio-note", url: URL.createObjectURL(file), fileName: file.name, side: "local", sender: alias, time: new Date().toLocaleTimeString() }]);
+          setMessages((prev) => [
+            ...prev,
+            {
+              type: "audio-note",
+              url: URL.createObjectURL(file),
+              fileName: file.name,
+              side: "local",
+              sender: alias,
+              time: new Date().toLocaleTimeString(),
+            },
+          ]);
         } else {
-          setMessages((prev) => [...prev, { type: "file-request", fileName: file.name, fileSize: file.size, side: "local", sender: alias, time: new Date().toLocaleTimeString(), status: "waiting-for-peer" }]);
+          setMessages((prev) => [
+            ...prev,
+            {
+              type: "file-request",
+              fileName: file.name,
+              fileSize: file.size,
+              side: "local",
+              sender: alias,
+              time: new Date().toLocaleTimeString(),
+              status: "waiting-for-peer",
+            },
+          ]);
         }
         if (e.target) e.target.value = null;
       }
     },
-    progress, logs, logContainerRef,
+    progress,
+    logs,
+    logContainerRef,
     syncing: status === "connecting" || (status === "ready" && initialSessionId),
-    syncConnection: () => { addLog("Node link re-sync initiated...", "warning"); connectToSignalling(wsRef, addLog, setStatus, onWsMessage); },
+    syncConnection: () => {
+      addLog("Node link re-sync initiated...", "warning");
+      connectToSignalling(wsRef, addLog, setStatus, onWsMessage);
+    },
     terminateConnection,
     isCallActive,
     toggleCall: () => _toggleCall(rtcRef, isCallActive, isOutgoingCall, setIsOutgoingCall, stopCallLocallyFn),
-    remoteAudioRef, alias, peerAlias,
+    remoteAudioRef,
+    alias,
+    peerAlias,
     acceptFile: (fileName) => rtcRef.current?.acceptFile(fileName),
     rejectFile: (fileName) => rtcRef.current?.rejectFile(fileName),
     clearLogs,
     connectToSignalling: () => connectToSignalling(wsRef, addLog, setStatus, onWsMessage),
     isIncomingCall,
     isOutgoingCall,
-    acceptCall: () => _acceptCall(incomingStream, remoteAudioRef, rtcRef, setIsCallActive, setIsIncomingCall, setIsOutgoingCall),
+    acceptCall: () =>
+      _acceptCall(incomingStream, remoteAudioRef, rtcRef, setIsCallActive, setIsIncomingCall, setIsOutgoingCall),
     rejectCall: () => _rejectCall(rtcRef, stopCallLocallyFn),
   };
 }

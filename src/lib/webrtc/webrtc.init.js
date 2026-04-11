@@ -1,24 +1,17 @@
 /**
  * webrtc.init.js - RTCPeerConnection factory
  * Creates and configures the peer connection with ICE servers.
+ * Supports VPN relay-only mode via getRTCConfig().
  */
 
-const DEFAULT_CONFIG = {
-  iceServers: [
-    { urls: "stun:stun.l.google.com:19302" },
-    {
-      urls: [
-        "turn:free.expressturn.com:3478?transport=udp",
-        "turn:free.expressturn.com:3478?transport=tcp",
-      ],
-      username: "000000002089815248",
-      credential: "ZO2117X0CMGGf53bq88y6k+jRQ4=",
-    },
-  ],
-};
+import { getRTCConfig } from "../constants";
 
-export function createPeerConnection(onLog, config = DEFAULT_CONFIG) {
+export function createPeerConnection(onLog, vpnEnabled = false) {
+  const config = getRTCConfig(vpnEnabled);
   const pc = new RTCPeerConnection(config);
-  onLog("RTCPeerConnection Initialized", "info");
+  onLog(
+    `RTCPeerConnection Initialized${vpnEnabled ? " [RELAY-ONLY / VPN]" : ""}`,
+    "info",
+  );
   return pc;
 }
