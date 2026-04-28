@@ -13,6 +13,13 @@ export class FileHandler {
     this.totalBytes = 0;
     this.receivedBytes = 0;
     this.pendingMetadata = null;
+    this.writeQueue = [];
+    this.isWriting = false;
+    this.unackedBytes = 0;
+    this.lastAckedBytes = 0;
+    this.ackResolve = null;
+    this.writtenBytes = 0;
+    this.unackedWrittenBytes = 0;
   }
 
   async send(file) {
@@ -22,6 +29,9 @@ export class FileHandler {
     }
 
     this.isSending = true;
+    this.unackedBytes = 0;
+    this.lastAckedBytes = 0;
+    this.ackResolve = null;
     this.onLog(`Injecting Payload: ${file.name}`, "info");
 
     this.dataChannel.send(
@@ -48,8 +58,11 @@ export class FileHandler {
 
     this.onLog("Link synced. Streaming binary...", "success");
     const reader = file.stream().getReader();
-    const CHUNK_SIZE = 16 * 1024;
+    const CHUNK_SIZE = 64 * 1024; // Increased chunk size to 64KB for better throughput
     let loaded = 0;
+
+    // Set threshold so the bufferedamountlow event fires when buffer drops below 2MB
+    this.dataChannel.bufferedAmountLowThreshold = 2 * 1024 * 1024; 
 
     try {
       while (true) {
@@ -58,23 +71,45 @@ export class FileHandler {
 
         let offset = 0;
         while (offset < value.byteLength) {
-          if (this.dataChannel.readyState !== "open") throw new Error("Link Lost");
-
-          if (this.dataChannel.bufferedAmount > 4 * 1024 * 1024) {
-            await new Promise((r) => {
+          while (this.dataChannel.bufferedAmount > 4 * 1024 * 1024) {
+            if (this.dataChannel.readyState !== "open") throw new Error("Link Lost");
+            await new Promise((resolve) => {
+              let timeoutId;
               const onLow = () => {
                 this.dataChannel.removeEventListener("bufferedamountlow", onLow);
-                r();
+                clearTimeout(timeoutId);
+                resolve();
               };
               this.dataChannel.addEventListener("bufferedamountlow", onLow);
-              setTimeout(r, 50);
+              
+              // Fallback to prevent deadlocks, check again after 1s
+              timeoutId = setTimeout(() => {
+                this.dataChannel.removeEventListener("bufferedamountlow", onLow);
+                resolve();
+              }, 1000); 
             });
           }
 
+          // Application-level flow control (Sliding Window)
+          while (this.unackedBytes > 32 * 1024 * 1024) {
+            if (this.dataChannel.readyState !== "open") throw new Error("Link Lost");
+            await new Promise((resolve) => {
+              this.ackResolve = resolve;
+              setTimeout(() => {
+                if (this.ackResolve) {
+                  this.ackResolve();
+                  this.ackResolve = null;
+                }
+              }, 3000); // 3s fallback if ACK is lost
+            });
+          }
+
+          if (this.dataChannel.readyState !== "open") throw new Error("Link Lost");
           const chunk = value.slice(offset, offset + CHUNK_SIZE);
           this.dataChannel.send(chunk);
           offset += chunk.byteLength;
           loaded += chunk.byteLength;
+          this.unackedBytes += chunk.byteLength;
           this.onProgress((loaded / file.size) * 100);
         }
       }
@@ -103,6 +138,8 @@ export class FileHandler {
     this.fileName = metadata.fileName;
     this.totalBytes = metadata.fileSize;
     this.receivedBytes = 0;
+    this.writtenBytes = 0;
+    this.unackedWrittenBytes = 0;
     this.isReceiving = true;
     this.audioChunks = [];
     this.onLog(`Buffering Audio Link: ${this.fileName}`, "info");
@@ -115,6 +152,8 @@ export class FileHandler {
     const metadata = this.pendingMetadata;
     this.totalBytes = metadata.fileSize;
     this.receivedBytes = 0;
+    this.writtenBytes = 0;
+    this.unackedWrittenBytes = 0;
     this.isReceiving = true;
     this.fileName = metadata.fileName;
     this.receivedChunks = [];
@@ -125,9 +164,13 @@ export class FileHandler {
         this.currentFileStream = await handle.createWritable();
         this.fileName = handle.name;
         this.receivedChunks = null;
+        this.onLog("Streaming directly to disk enabled", "success");
       } catch (e) {
-        console.warn("Picker failed, using memory buffer");
+        this.onLog("Save cancelled or failed. Buffering in memory instead (may crash on large files)", "warning");
+        console.warn("Picker failed, using memory buffer", e);
       }
+    } else {
+      this.onLog("Direct disk write not supported by browser or HTTP. Buffering in memory...", "warning");
     }
 
     this.onStatus("transferring");
@@ -150,21 +193,69 @@ export class FileHandler {
     this.onStatus("connected");
   }
 
+  handleFileAck(metadata) {
+    if (metadata.bytes > this.lastAckedBytes) {
+      this.unackedBytes -= (metadata.bytes - this.lastAckedBytes);
+      this.lastAckedBytes = metadata.bytes;
+    }
+    if (this.unackedBytes <= 32 * 1024 * 1024 && this.ackResolve) {
+      this.ackResolve();
+      this.ackResolve = null;
+    }
+  }
+
   async handleChunk(data) {
     if (!this.isReceiving) return;
     if (this.currentFileStream) {
-      await this.currentFileStream.write(data);
-    } else if (this.audioChunks) {
-      this.audioChunks.push(new Uint8Array(data));
-    } else if (this.receivedChunks) {
-      this.receivedChunks.push(new Uint8Array(data));
+      this.writeQueue.push(data);
+      this.processWriteQueue();
+    } else if (this.audioChunks || this.receivedChunks) {
+      if (this.audioChunks) this.audioChunks.push(new Uint8Array(data));
+      else this.receivedChunks.push(new Uint8Array(data));
+      
+      this.writtenBytes += data.byteLength;
+      this.unackedWrittenBytes += data.byteLength;
+      if (this.unackedWrittenBytes > 8 * 1024 * 1024) {
+        if (this.dataChannel.readyState === "open") {
+          this.dataChannel.send(JSON.stringify({ type: "FILE_ACK", bytes: this.writtenBytes }));
+        }
+        this.unackedWrittenBytes = 0;
+      }
     }
     this.receivedBytes += data.byteLength;
     this.onProgress((this.receivedBytes / this.totalBytes) * 100);
   }
 
+  async processWriteQueue() {
+    if (this.isWriting || this.writeQueue.length === 0) return;
+    this.isWriting = true;
+    try {
+      while (this.writeQueue.length > 0) {
+        const chunk = this.writeQueue.shift();
+        await this.currentFileStream.write(chunk);
+        
+        this.writtenBytes += chunk.byteLength;
+        this.unackedWrittenBytes += chunk.byteLength;
+        
+        if (this.unackedWrittenBytes > 8 * 1024 * 1024) {
+          if (this.dataChannel.readyState === "open") {
+            this.dataChannel.send(JSON.stringify({ type: "FILE_ACK", bytes: this.writtenBytes }));
+          }
+          this.unackedWrittenBytes = 0;
+        }
+      }
+    } catch (e) {
+      this.onLog(`Disk Write Error: ${e.message}`, "error");
+    } finally {
+      this.isWriting = false;
+    }
+  }
+
   async finish() {
     if (this.currentFileStream) {
+      while (this.isWriting || this.writeQueue.length > 0) {
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      }
       await this.currentFileStream.close();
       this.currentFileStream = null;
     } else if (this.audioChunks) {

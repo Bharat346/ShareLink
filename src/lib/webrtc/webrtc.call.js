@@ -34,7 +34,7 @@ export class CallHandler {
     this.isIncoming = false;
     this.sendSignal({ callAction: "CALL_INITIATE" });
     this.startTTL("CANCEL", 20000);
-    return await this.activate();
+    return true;
   }
 
   /**
@@ -72,13 +72,22 @@ export class CallHandler {
           googTypingNoiseDetection: true,
           googAudioMirroring: false,
           sampleRate: { ideal: 48000 },
-          channelCount: { ideal: 1 }
-        }
+          channelCount: { ideal: 1 },
+        },
       };
 
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
       this.localStream = stream;
 
+      const existing = this.pc
+        .getSenders()
+        .find((s) => s.track && s.track.kind === "audio");
+
+      if (existing) {
+        this.onLog("Audio sender already exists", "warning");
+        return false;
+      }
+      
       stream.getTracks().forEach((t) => this.pc.addTrack(t, stream));
 
       // If we are answering an incoming call, send ACCEPT signal
@@ -86,11 +95,11 @@ export class CallHandler {
         this.sendSignal({ callAction: "ACCEPT" });
       }
 
-      if (this.pc.signalingState === "stable") {
-        const offer = await this.pc.createOffer();
-        await this.pc.setLocalDescription(offer);
-        this.sendSignal({ description: this.pc.localDescription });
-      }
+      // if (this.pc.signalingState === "stable") {
+      //   const offer = await this.pc.createOffer();
+      //   await this.pc.setLocalDescription(offer);
+      //   this.sendSignal({ description: this.pc.localDescription });
+      // }
       return true;
     } catch (err) {
       // ... same error handling ...
@@ -101,7 +110,10 @@ export class CallHandler {
       } else if (err.name === "NotReadableError") {
         this.onLog("Microphone already in use by another application", "error");
       } else {
-        this.onLog(`Voice Hardware Error: ${err.name} - ${err.message}`, "error");
+        this.onLog(
+          `Voice Hardware Error: ${err.name} - ${err.message}`,
+          "error",
+        );
       }
       this.clearTTL();
       return false;
@@ -160,7 +172,11 @@ export class CallHandler {
   _stopLocalTracks() {
     if (this.localStream) {
       this.localStream.getTracks().forEach((t) => {
-        try { t.stop(); } catch (e) { /* track already stopped */ }
+        try {
+          t.stop();
+        } catch (e) {
+          /* track already stopped */
+        }
       });
       this.localStream = null;
     }
@@ -174,7 +190,11 @@ export class CallHandler {
     try {
       this.pc.getSenders().forEach((s) => {
         if (s.track?.kind === "audio") {
-          try { this.pc.removeTrack(s); } catch (e) { /* sender already removed */ }
+          try {
+            this.pc.removeTrack(s);
+          } catch (e) {
+            /* sender already removed */
+          }
         }
       });
     } catch (e) {
@@ -185,7 +205,10 @@ export class CallHandler {
   startTTL(autoAction, duration = 20000) {
     this.clearTTL();
     this.callTimeout = setTimeout(() => {
-      this.onLog(`Signal Link Timeout: ${duration / 1000}s Threshold Reached`, "warning");
+      this.onLog(
+        `Signal Link Timeout: ${duration / 1000}s Threshold Reached`,
+        "warning",
+      );
       if (autoAction === "CANCEL") this.cancel();
       else if (autoAction === "REJECT") this.reject();
       this.onStatus("call-timeout");
@@ -200,10 +223,19 @@ export class CallHandler {
 
   sendCallSignal(a) {
     switch (a) {
-      case "ACCEPT": this.accept(); break;
-      case "REJECT": this.reject(); break;
-      case "CANCEL": this.cancel(); break;
-      case "END": this.stop(); this.sendSignal({ callAction: "END" }); break;
+      case "ACCEPT":
+        this.accept();
+        break;
+      case "REJECT":
+        this.reject();
+        break;
+      case "CANCEL":
+        this.cancel();
+        break;
+      case "END":
+        this.stop();
+        this.sendSignal({ callAction: "END" });
+        break;
     }
   }
 

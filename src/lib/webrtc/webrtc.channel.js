@@ -49,6 +49,7 @@ export function setupDataChannel(channel, onLog, onStatus, onProgress, chatRef, 
         case "AUDIO_MSG": file.handleAudioStart(metadata); break;
         case "ACCEPT_TRANSFER": file.handleAccept(); break;
         case "REJECT_TRANSFER": file.handleReject(); break;
+        case "FILE_ACK": file.handleFileAck(metadata); break;
         case "END_TRANSFER": await file.finish(); break;
         default:
           onLog(`Unknown message type: ${metadata.type}`, "warning");
